@@ -26,4 +26,6 @@ galaxy_info:
     - grub
     - grubby
     - loader
+    - leap
+    - sles
 dependencies: []
