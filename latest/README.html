@@ -159,6 +159,8 @@ id="toc-bootloader_password">bootloader_password</a></li>
 id="toc-bootloader_remove_password">bootloader_remove_password</a></li>
 <li><a href="#bootloader_reboot_ok"
 id="toc-bootloader_reboot_ok">bootloader_reboot_ok</a></li>
+<li><a href="#bootloader_secure_logging"
+id="toc-bootloader_secure_logging">bootloader_secure_logging</a></li>
 </ul></li>
 <li><a href="#variables-exported-by-the-role"
 id="toc-variables-exported-by-the-role">Variables Exported by the
@@ -243,8 +245,16 @@ update the default or all kernels.</p>
 <li><code>name</code> - The name of the setting. Omit <code>name</code>
 when using <code>replaced</code>.</li>
 <li><code>value</code> - The value for the setting. You must omit
-<code>value</code> if the setting has no value, e.g.
-<code>quiet</code>.</li>
+<code>value</code> if the setting has no value, e.g. <code>quiet</code>.
+<strong>NOTE</strong> - a value must not be <a
+href="https://yaml.org/type/bool.html">YAML bool type</a>. One situation
+where this might be a problem is using <code>value: on</code> or other
+YAML <code>bool</code> typed value. You must quote these values, or
+otherwise pass them as a value of <code>str</code> type e.g.
+<code>value: "on"</code>. The same applies to <code>null</code> values.
+If you specify a value, it must not be <code>null</code> - values such
+as <code>value:</code> or <code>value: ~</code> or
+<code>value: null</code> are not allowed and will raise an error.</li>
 <li><code>state</code> - <code>present</code> (default) or
 <code>absent</code>. The value <code>absent</code> means to remove a
 setting with the given <code>name</code> - the name must be
@@ -267,7 +277,10 @@ Playbook</a>.</p>
 <h2 id="bootloader_timeout">bootloader_timeout</h2>
 <p>Use this variable to customize the loading time of the GRUB
 bootloader.</p>
-<p>Default: <code>5</code></p>
+<p>Usually the native setting for timeout is <code>5</code>.</p>
+<p>When this variable is not set by a user, the role doesn't change the
+timeout setting.</p>
+<p>Default: <code>null</code></p>
 <p>Type: <code>int</code></p>
 <h2 id="bootloader_password">bootloader_password</h2>
 <p>Use this variable to protect boot parameters with a password.</p>
@@ -293,6 +306,20 @@ the managed host.</p>
 <code>true</code> to indicate that changes have occurred which need a
 reboot to take effect.</p>
 <p>Default: <code>false</code></p>
+<p>Type: <code>bool</code></p>
+<h2 id="bootloader_secure_logging">bootloader_secure_logging</h2>
+<p>If <code>true</code>, suppress potentially sensitive output from
+tasks that handle credentials, secrets, and other sensitive data by
+setting <code>no_log: true</code> on those tasks. This prevents
+passwords, API tokens, private keys, and similar sensitive information
+from appearing in Ansible logs and console output.</p>
+<p>If you need to debug issues with credential handling or secret
+management, you can temporarily set
+<code>bootloader_secure_logging: false</code> to see the full output
+from these tasks. However, be aware that this may expose sensitive
+information in logs, so it should only be used in development or
+troubleshooting scenarios.</p>
+<p>Default: <code>true</code></p>
 <p>Type: <code>bool</code></p>
 <h1 id="variables-exported-by-the-role">Variables Exported by the
 Role</h1>
