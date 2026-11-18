@@ -110,11 +110,16 @@ from ansible.module_utils.basic import AnsibleModule
 # pylint: disable=import-error
 import ansible.module_utils.six.moves as ansible_six_moves
 from ansible.module_utils.bootloader_lsr import pbl
+from ansible.module_utils.bootloader_lsr.grub import (
+    get_grubby_prefix,
+    strip_grubby_prefix,
+)
 
 
 def get_facts(kernels_info, default_kernel_index):
     """Get kernel facts"""
     kernels_info_lines = kernels_info.strip().split("\n")
+    prefix = get_grubby_prefix(kernels_info)
     kernels = []
     index_count = 0
 
@@ -128,6 +133,8 @@ def get_facts(kernels_info, default_kernel_index):
         if search:
             key = search.group(1).strip('"')
             value = search.group(2).strip('"')
+            if key in ("kernel", "initrd"):
+                value = strip_grubby_prefix(value, prefix)
             kernels[index_count - 1].update({key: value})
         else:
             kernels[index_count - 1].update({"kernel": line})
@@ -483,8 +490,9 @@ def mod_default_kernel(module, result, bootloader_setting, kernel_info):
     if not kernel_match:
         return
 
-    kernel = kernel_match.group(1)
-    current_default = get_default_kernel(module, "kernel")
+    prefix = get_grubby_prefix(kernel_info)
+    kernel = strip_grubby_prefix(kernel_match.group(1), prefix)
+    current_default = strip_grubby_prefix(get_default_kernel(module, "kernel"), prefix)
     if current_default == kernel:
         return
 
@@ -586,6 +594,12 @@ def run_module():
         kernel_action, kernel = validate_kernels(
             module, bootloader_setting, bootloader_facts
         )
+        # grubby finds an entry by the path on disk and changes it by its own path
+        grubby_kernel = re.sub(
+            r"(^|--add-kernel=|--initrd=)('?)(?=/boot/)",
+            r"\1\2" + get_grubby_prefix(kernels_info),
+            kernel,
+        )
 
         # Remove all existing boot settings
         if (
@@ -594,25 +608,27 @@ def run_module():
         ) and (kernel_action != "remove"):
             rc, kernel_info, stderr = module.run_command("grubby --info=" + kernel)
             if needs_replacement(bootloader_setting.get("options", []), kernel_info):
-                rm_boot_args(module, result, kernel_info, kernel)
+                rm_boot_args(module, result, kernel_info, grubby_kernel)
 
         # Create a kernel with provided options
         if kernel_action == "create":
-            add_kernel(module, result, bootloader_setting, kernel)
+            add_kernel(module, result, bootloader_setting, grubby_kernel)
 
         # Modify boot settings
         if kernel_action == "modify":
             _unused, kernel_info, _unused = module.run_command(
                 "grubby --info=" + kernel
             )
-            mod_boot_args(module, result, bootloader_setting, kernel, kernel_info)
+            mod_boot_args(
+                module, result, bootloader_setting, grubby_kernel, kernel_info
+            )
 
             # Modify default kernel
             mod_default_kernel(module, result, bootloader_setting, kernel_info)
 
         # Remove a kernel
         if kernel_action == "remove":
-            rm_kernel(module, result, kernel)
+            rm_kernel(module, result, grubby_kernel)
 
     result["changed"] = len(result["actions"]) > 0
     result["reboot_required"] = result["changed"]

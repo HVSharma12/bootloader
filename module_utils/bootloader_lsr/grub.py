@@ -141,6 +141,25 @@ def get_grub_cfg_facts(grub_cfg, grub_default, saved_entry):
     return kernels
 
 
+def get_grubby_prefix(kernels_info):
+    """Return /boot when grubby reports the kernels in /boot as /boot/boot/...
+
+    grubby adds /boot to the path in a boot entry when /boot is a mount point.
+    On a btrfs subvolume the entry already has it.
+    """
+    for kernel in re.findall(r'^kernel="(/boot/boot/[^"]*)"', kernels_info, re.M):
+        if not os.path.exists(kernel) and os.path.exists(kernel[5:]):
+            return "/boot"
+    return ""
+
+
+def strip_grubby_prefix(path, prefix):
+    """Return the path on disk for a path that grubby reports"""
+    if prefix and path.startswith(prefix + "/boot/"):
+        return path.replace(prefix, "", 1)
+    return path
+
+
 def read_file(path):
     """Read a text file, or return an empty string when it does not exist"""
     if not os.path.exists(path):

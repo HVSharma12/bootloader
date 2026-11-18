@@ -11,6 +11,11 @@ __metaclass__ = type
 
 import unittest
 
+try:
+    from unittest.mock import patch
+except ImportError:
+    from mock import patch
+
 import bootloader_facts
 import bootloader_settings
 
@@ -106,4 +111,19 @@ class InputValidator(unittest.TestCase):
         self.assertEqual(
             FACTS,
             kernels,
+        )
+
+    def test_get_facts_boot_subvolume(self):
+        """grubby reports /boot/boot/... when /boot is a btrfs subvolume"""
+        info = INFO.replace("/boot/", "/boot/boot/")
+        with patch(
+            "os.path.exists",
+            side_effect=lambda path: not path.startswith("/boot/boot/"),
+        ):
+            self.assertEqual(FACTS, bootloader_facts.get_facts(info, "2"))
+            self.assertEqual(FACTS, bootloader_settings.get_facts(info, "2"))
+        with patch("os.path.exists", return_value=True):
+            kernels = bootloader_facts.get_facts(info, "2")
+        self.assertEqual(
+            "/boot/boot/vmlinuz-6.5.12-100.fc37.x86_64", kernels[0]["kernel"]
         )

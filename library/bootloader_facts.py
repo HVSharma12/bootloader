@@ -118,12 +118,18 @@ ansible_facts:
 
 import re
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.bootloader_lsr.grub import check_loader, get_kernels
+from ansible.module_utils.bootloader_lsr.grub import (
+    check_loader,
+    get_grubby_prefix,
+    get_kernels,
+    strip_grubby_prefix,
+)
 
 
 def get_facts(kernels_info, default_kernel):
     """Get kernel facts"""
     kernels_info_lines = kernels_info.strip().split("\n")
+    prefix = get_grubby_prefix(kernels_info)
     kernels = []
     index_count = 0
 
@@ -137,6 +143,8 @@ def get_facts(kernels_info, default_kernel):
         if search:
             key = search.group(1).strip('"')
             value = search.group(2).strip('"')
+            if key in ("kernel", "initrd"):
+                value = strip_grubby_prefix(value, prefix)
             kernels[index_count - 1].update({key: value})
         else:
             kernels[index_count - 1].update({"kernel": line})
