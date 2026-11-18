@@ -155,7 +155,7 @@ def get_grubby_prefix(kernels_info):
 
 def strip_grubby_prefix(path, prefix):
     """Return the path on disk for a path that grubby reports"""
-    if prefix and path.startswith(prefix + "/boot/"):
+    if prefix and str(path).startswith(prefix + "/boot/"):
         return path.replace(prefix, "", 1)
     return path
 

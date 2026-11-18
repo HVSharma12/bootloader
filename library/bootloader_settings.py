@@ -330,6 +330,14 @@ def validate_kernels(module, bootloader_setting, bootloader_facts):
     return kernel_action, kernel
 
 
+def strip_kernel_prefix(kernel, prefix):
+    """Accept a kernel and initrd path in the form that grubby reports"""
+    if isinstance(kernel, dict):
+        for key in ("path", "initrd"):
+            if key in kernel:
+                kernel[key] = strip_grubby_prefix(kernel[key], prefix)
+
+
 def escapeval(val):
     """Make sure val is quoted as in shell"""
     return ansible_six_moves.shlex_quote(str(val))
@@ -591,14 +599,15 @@ def run_module():
         default_kernel_index = get_default_kernel(module, "index")
         bootloader_facts = get_facts(kernels_info, default_kernel_index)
 
+        prefix = get_grubby_prefix(kernels_info)
+        strip_kernel_prefix(bootloader_setting["kernel"], prefix)
+
         kernel_action, kernel = validate_kernels(
             module, bootloader_setting, bootloader_facts
         )
         # grubby finds an entry by the path on disk and changes it by its own path
         grubby_kernel = re.sub(
-            r"(^|--add-kernel=|--initrd=)('?)(?=/boot/)",
-            r"\1\2" + get_grubby_prefix(kernels_info),
-            kernel,
+            r"(^|--add-kernel=|--initrd=)('?)(?=/boot/)", r"\1\2" + prefix, kernel
         )
 
         # Remove all existing boot settings

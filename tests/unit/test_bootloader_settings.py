@@ -415,6 +415,30 @@ class InputValidator(unittest.TestCase):
         self.assertEqual(self.result["actions"][0], expected_cmd_no_options)
         self.reset_vars()
 
+    def test_strip_kernel_prefix(self):
+        """a path in the form that grubby reports on a /boot subvolume is accepted"""
+        kernel = {
+            "path": "/boot/boot/vmlinuz-6",
+            "initrd": "/boot/boot/initramfs-6.img",
+            "title": "/boot/boot/title",
+        }
+        bootloader_settings.strip_kernel_prefix(kernel, "/boot")
+        self.assertEqual(
+            kernel,
+            {
+                "path": "/boot/vmlinuz-6",
+                "initrd": "/boot/initramfs-6.img",
+                "title": "/boot/boot/title",
+            },
+        )
+        for kernel in [{"path": "/boot/boot/vmlinuz-6"}, {"index": 1}, "ALL"]:
+            expected = kernel.copy() if isinstance(kernel, dict) else kernel
+            bootloader_settings.strip_kernel_prefix(kernel, "")
+            self.assertEqual(kernel, expected)
+        kernel = {"index": 1, "path": 2}
+        bootloader_settings.strip_kernel_prefix(kernel, "/boot")
+        self.assertEqual(kernel, {"index": 1, "path": 2})
+
     def test_rm_kernel(self):
         self.reset_vars()
         self.kernel = bootloader_settings.get_single_kernel(SETTINGS[3]["kernel"])
